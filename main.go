@@ -83,3 +83,47 @@ func bytesToHex(bytes []byte) string {
 	}
 	return hexString
 }
+
+// aesDecrypt 实现 AES/ECB/PKCS7Padding 解密
+func aesDecrypt(encryptedText, key string) (string, error) {
+	// 解码Base64
+	encryptedBytes, err := base64.StdEncoding.DecodeString(encryptedText)
+	if err != nil {
+		return "", err
+	}
+
+	// 创建cipher
+	block, err := aes.NewCipher([]byte(key))
+	if err != nil {
+		return "", err
+	}
+
+	// ECB模式解密
+	blockSize := block.BlockSize()
+	decrypted := make([]byte, len(encryptedBytes))
+
+	// 按块解密
+	for bs, be := 0, blockSize; bs < len(encryptedBytes); bs, be = bs+blockSize, be+blockSize {
+		block.Decrypt(decrypted[bs:be], encryptedBytes[bs:be])
+	}
+
+	// 移除PKCS#7填充
+	paddingLength := int(decrypted[len(decrypted)-1])
+	if paddingLength > 0 && paddingLength <= blockSize {
+		// 验证填充是否正确
+		validPadding := true
+		for i := len(decrypted) - paddingLength; i < len(decrypted); i++ {
+			if decrypted[i] != byte(paddingLength) {
+				validPadding = false
+				break
+			}
+		}
+
+		if validPadding {
+			decrypted = decrypted[:len(decrypted)-paddingLength]
+		}
+	}
+
+	return string(decrypted), nil
+}
+
